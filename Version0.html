@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LIFF Form</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai');
+        * {
+            font-family: 'Noto Sans Thai', sans-serif;
+        }
+    </style>
+</head>
+<body class="d-flex justify-content-center mt-5">
+    <div class="card bg-light w-100" style="max-width: 560px;">
+        <div class="card-body">
+            <h1 class="card-title text-center mb-4 mt-3">LIFF Form Example</h1><hr/>
+            <div class="mb-3 d-flex justify-content-center">
+                <img id="line-profile-image" src="" alt="Line Profile Image" class="rounded-circle" style="width: 100px; height: 100px; display: none;">
+            </div>
+            <form id="liff-form">
+                <div class="mb-3">
+                    <label for="liff-uid" class="form-label">LIFF UID</label>
+                    <input type="text" id="liff-uid" class="form-control" readonly>
+                </div>
+                <div class="mb-3">
+                    <label for="name" class="form-label">Name</label>
+                    <input type="text" id="name" class="form-control" readonly>
+                </div>
+                <div class="mb-3">
+                    <label for="telephone" class="form-label">Telephone</label>
+                    <input type="tel" id="telephone" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label for="file" class="form-label">Upload File</label>
+                    <input type="file" id="file" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-success btn-lg w-100">Submit</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('liff-form');
+            const liffUidInput = document.getElementById('liff-uid');
+            const nameInput = document.getElementById('name');
+            const telephoneInput = document.getElementById('telephone');
+            const fileInput = document.getElementById('file');
+            const lineProfileImage = document.getElementById('line-profile-image');
+
+            const LIFF_ID = 'XXXXXXXXX';
+            const SERVER = 'https://script.google.com/macros/s/XXXXXXXXX/exec';
+
+            async function initializeLiff() {
+                try {
+                    await liff.init({ liffId: LIFF_ID });
+                    if (liff.isLoggedIn()) {
+                        const profile = await liff.getProfile();
+                        liffUidInput.value = profile.userId;
+                        nameInput.value = profile.displayName;
+                        if (profile.pictureUrl) {
+                            lineProfileImage.src = profile.pictureUrl;
+                            lineProfileImage.style.display = 'block';
+                        }
+                    } else {
+                        liff.login();
+                    }
+                } catch (error) {
+                    console.error('LIFF initialization failed:', error);
+                }
+            }
+
+            function getBase64(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = (error) => reject(error);
+                    reader.readAsDataURL(file);
+                });
+            }
+
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const liffUid = liffUidInput.value;
+                const name = nameInput.value;
+                const telephone = telephoneInput.value;
+                const file = fileInput.files[0];
+
+                if (!file) {
+                    Swal.fire('Error', 'Please upload a file.', 'error');
+                    return;
+                }
+
+                const base64Image = await getBase64(file);
+
+                Swal.fire({
+                    title: 'Submitting...',
+                    text: 'Please wait while we process your request.',
+                    didOpen: () => Swal.showLoading(),
+                    allowOutsideClick: false,
+                });
+
+                fetch(SERVER, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        lineUid: liffUid,
+                        name,
+                        telephone,
+                        image: base64Image
+                    })
+                })
+                    .then(() => {
+                        Swal.fire('Success', 'Form submitted successfully!', 'success');
+                        form.reset();
+                        lineProfileImage.style.display = 'none';
+                    })
+                    .catch((error) => {
+                        console.error('Error:', error);
+                        Swal.fire('Error', 'Failed to submit the form.', 'error');
+                    });
+            });
+
+            initializeLiff();
+        });
+    </script>
+</body>
+</html>
+
+
+
+
+
+<!-- CODE.GS
+
+function doPost(e) {
+    const data = JSON.parse(e.postData.contents);
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Form');
+    const imageUrl = saveImageToDrive(data.image);
+    sheet.appendRow([
+        data.lineUid, data.name, 
+        "'" + data.telephone, 
+        imageUrl
+        ]);
+    return ContentService.createTextOutput(JSON.stringify({ status: 'success', message: 'Data saved successfully.' })).setMimeType(ContentService.MimeType.JSON);
+}
+
+function saveImageToDrive(base64Image) {
+  const blob = Utilities.newBlob(Utilities.base64Decode(base64Image.split(',')[1]), 'image/jpeg', 'uploaded-image.jpg');
+  const folder = DriveApp.getFolderById('1K7m5To6Ze4pa9teyAl0O25mOZiEwa26A');
+  const file = folder.createFile(blob);
+  return file.getUrl();
+}
+ -->
