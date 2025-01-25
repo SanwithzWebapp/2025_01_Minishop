@@ -1,0 +1,36 @@
+// FLEX
+function pushMessage() {
+
+/** ----------------------- SETTING VARIABLE ----------------------------*/
+
+  const line_access_token = 'XXXXXXX' 
+ 
+  const uid = 'Uc9064514247263263c93136671c08aa1'
+
+/** -------------------------------------------------------------------- */
+
+  var flexContent = 
+{
+  
+}
+
+// =============
+  var options = {
+    'method': 'POST',
+    'headers': {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + line_access_token,
+    },
+    'payload': JSON.stringify({
+      'to': uid,
+      'messages': [{
+        "type": "flex",
+        "altText": "Flex Message with Buttons",
+        "contents": flexContent
+      }]
+    }),
+  };
+
+  var response = UrlFetchApp.fetch('https://api.line.me/v2/bot/message/push', options);
+  Logger.log(response);
+}
