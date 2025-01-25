@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Menu UI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script> <!-- LIFF SDK -->
+    <script src="https://code.jquery.com/jquery-3.6.0.js"></script>
+    <script src="//cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gasparesganga-jquery-loading-overlay@2.1.7/dist/loadingoverlay.min.js"></script>
+
+  <style>
+          @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai');
+      
+        * {
+          box-sizing: border-box;
+          font-family: 'Noto Sans Thai', sans-serif;
+        }
+  </style>
+  </head>
+<body class="bg-gray-800 text-white font-sans">
+    <!-- Top Navbar -->
+    <nav class="bg-green-500 p-4 flex items-center justify-between">
+        <div class="flex items-center space-x-4">
+            <img src="https://lh3.googleusercontent.com/d/1ZMI9FTcErAj1N8vh0viy3rAPnxZ7Zsky" style="width:50px" alt="Sanwithz Shop Logo" class="w-12 h-12 rounded-full">
+            <h1 class="text-2xl font-bold">Sanwithz Shop</h1>
+        </div>
+    </nav>
+
+    <div class="max-w-screen-lg mx-auto p-4">
+        <!-- Filter Buttons -->
+        <div class="flex space-x-2 mb-6">
+            <button class="bg-green-500 text-white py-2 px-4 rounded-full filter-button" data-filter="all">ทั้งหมด</button>
+            <button class="bg-gray-700 text-white py-2 px-4 rounded-full filter-button" data-filter="food">อาหาร</button>
+            <button class="bg-gray-700 text-white py-2 px-4 rounded-full filter-button" data-filter="dessert">ของหวาน</button>
+            <button class="bg-gray-700 text-white py-2 px-4 rounded-full filter-button" data-filter="drink">เครื่องดื่ม</button>
+        </div>
+
+        <!-- Items Grid -->
+        <div class="grid grid-cols-3 gap-4 mb-6" id="items-grid"></div>
+
+        <!-- Order Summary -->
+        <div class="bg-gray-700 p-4 rounded-xl mb-4">
+            <div class="flex justify-between items-center">
+                <p class="text-xl">Total Item (0)</p>
+            </div>
+
+            <!-- Order Items List -->
+            <div id="order-items" class="mt-4"></div>
+        </div>
+
+        <!-- Total Amount and Actions -->
+        <div class="flex justify-between items-center bg-gray-800 p-4 rounded-xl">
+            <p class="text-2xl">Total <span class="text-green-400 total-amount">$0</span></p>
+            <div class="flex items-center space-x-4">
+                <button class="bg-gray-600 text-white px-4 py-2 rounded-full reset">ล้าง</button>
+                <button class="bg-green-500 text-white px-4 py-2 rounded-full pay-now">ชำระเงิน</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="payment-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg w-96 text-gray-800">
+            <h2 class="text-xl font-bold mb-4">Payment Details</h2>
+            <form id="payment-form" class="space-y-4">
+                <div class="items-center space-x-4 mb-4">
+                    <center><img id="user-image" src="" alt="User Image" class="w-36 h-36 rounded-full hidden"></center>
+                </div>
+                <div>
+                    <label for="name" class="block text-sm font-medium">Name</label>
+                    <input type="text" id="name" name="name" class="w-full p-2 border rounded" required>
+                </div>
+                <div>
+                    <label for="telephone" class="block text-sm font-medium">Telephone</label>
+                    <input type="tel" id="telephone" name="telephone" class="w-full p-2 border rounded" required>
+                </div>
+                <div>
+                    <label for="address" class="block text-sm font-medium">Address</label>
+                    <textarea id="address" name="address" class="w-full p-2 border rounded" rows="3" required></textarea>
+                </div>
+                <div>
+                    <label for="slip" class="block text-sm font-medium">Upload Slip</label>
+                    <input type="file" id="slip" name="slip" class="w-full p-2 border rounded" required>
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" class="bg-gray-500 text-white px-4 py-2 rounded cancel">Cancel</button>
+                    <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded">Submit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const orderDetail = {
+                items: [],
+                totalAmount: 0,
+            };
+
+// Global Variables
+        const SERVER_URL = "https://script.google.com/macros/s/XXXXXXXX/exec";
+          
+        const Product_List = "https://opensheet.elk.sh/XXXXXXXX/Product"
+          
+        const LIFF_ID = "XXXXXXXX"; 
+          
+            // Elements
+            const totalItemsElement = document.querySelector('.text-xl');
+            const totalAmountElement = document.querySelector('.total-amount');
+            const orderItemsContainer = document.getElementById('order-items');
+            const resetButton = document.querySelector('.reset');
+            const payNowButton = document.querySelector('.pay-now');
+            const paymentModal = document.getElementById('payment-modal');
+            const cancelButton = paymentModal.querySelector('.cancel');
+            const paymentForm = document.getElementById('payment-form');
+            const userNameInput = document.getElementById('name');
+            const userImage = document.getElementById('user-image');
+
+            // Fetch data from JSON URL and render items
+            async function fetchMenuItems() {
+                const url = Product_List;
+                try {
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    renderMenuItems(data);
+                } catch (error) {
+                    console.error('Error fetching menu items:', error);
+                }
+            }
+
+            // Render fetched menu items into the grid
+            function renderMenuItems(items) {
+                const itemsGrid = document.getElementById('items-grid');
+                itemsGrid.innerHTML = ''; // Clear existing items
+
+                items.forEach(item => {
+                    const itemCard = document.createElement('div');
+                    itemCard.className = 'bg-gray-700 p-4 rounded-xl text-center cursor-pointer item-card';
+                    itemCard.setAttribute('data-name', item['Item Name']);
+                    itemCard.setAttribute('data-price', item.Price);
+                    itemCard.setAttribute('data-category', item.Category.toLowerCase());
+                    itemCard.innerHTML = `
+                        <img src="${item['Image URL']}" alt="${item['Item Name']} Image" class="mx-auto mb-2">
+                        <p>${item['Item Name']}</p>
+                        <p class="text-green-400">${item.Price}฿</p>
+                    `;
+                    itemsGrid.appendChild(itemCard);
+
+                    // Add click event to item card
+itemCard.addEventListener('click', () => {
+    addItemToOrder(item['Item Name'], parseInt(item.Price, 10), item['Image URL']);
+});
+
+                });
+            }
+
+// Update the UI
+function updateUI() {
+    totalItemsElement.textContent = `Total Item (${orderDetail.items.length})`;
+    totalAmountElement.textContent = `${orderDetail.totalAmount.toLocaleString()}฿`;
+}
+
+
+            // Add item to order
+function addItemToOrder(name, price, imageUrl) {
+    const existingItem = orderDetail.items.find(item => item.name === name);
+    if (existingItem) {
+        existingItem.quantity += 1;
+    } else {
+        orderDetail.items.push({ name, price, quantity: 1, image: imageUrl });
+    }
+    orderDetail.totalAmount += price;
+    renderOrderItems();
+    updateUI();
+}
+
+
+// Render Order Items
+function renderOrderItems() {
+    orderItemsContainer.innerHTML = '';
+    orderDetail.items.forEach(item => {
+        const formattedPrice = item.price.toLocaleString(); // Format price with thousand separators
+        const itemElement = document.createElement('div');
+        itemElement.className = 'flex items-center justify-between mt-2';
+        itemElement.innerHTML = `
+            <div class="flex items-center">
+                <img src="${item.image || 'https://placehold.co/50x50'}" alt="${item.name} Image" class="w-12 h-12 rounded mr-4">
+                <div>
+                    <p>${item.name}</p>
+                    <p class="text-green-400">Price ${formattedPrice}฿</p>
+                </div>
+            </div>
+            <div class="flex items-center">
+                <button class="text-white bg-gray-600 px-2 rounded decrement">-</button>
+                <span class="mx-2 quantity">${item.quantity}</span>
+                <button class="text-white bg-gray-600 px-2 rounded increment">+</button>
+                <button class="text-red-500 ml-4 remove"><i class="fas fa-trash"></i></button>
+            </div>
+        `;
+        orderItemsContainer.appendChild(itemElement);
+
+        // Add event listeners to newly created buttons
+        itemElement.querySelector('.increment').addEventListener('click', () => {
+            item.quantity += 1;
+            orderDetail.totalAmount += item.price;
+            updateUI();
+            renderOrderItems();
+        });
+
+        itemElement.querySelector('.decrement').addEventListener('click', () => {
+            if (item.quantity > 1) {
+                item.quantity -= 1;
+                orderDetail.totalAmount -= item.price;
+                updateUI();
+                renderOrderItems();
+            }
+        });
+
+        itemElement.querySelector('.remove').addEventListener('click', () => {
+            orderDetail.items = orderDetail.items.filter(i => i !== item);
+            orderDetail.totalAmount -= item.price * item.quantity;
+            updateUI();
+            renderOrderItems();
+        });
+    });
+}
+
+
+            // Filter functionality
+            document.querySelectorAll('.filter-button').forEach(button => {
+                button.addEventListener('click', () => {
+                    const filter = button.getAttribute('data-filter');
+                    document.querySelectorAll('.item-card').forEach(card => {
+                        if (filter === 'all' || card.getAttribute('data-category') === filter) {
+                            card.classList.remove('hidden');
+                        } else {
+                            card.classList.add('hidden');
+                        }
+                    });
+
+                    // Highlight the active filter button
+                    document.querySelectorAll('.filter-button').forEach(btn => btn.classList.remove('bg-green-500'));
+                    button.classList.add('bg-green-500');
+                });
+            });
+
+            // Start over button to reset the order
+            resetButton.addEventListener('click', () => {
+                orderDetail.items = [];
+                orderDetail.totalAmount = 0;
+                renderOrderItems();
+                updateUI();
+            });
+
+            // Show modal on "Pay Now" button click
+            payNowButton.addEventListener('click', () => {
+                paymentModal.classList.remove('hidden');
+            });
+
+            // Hide modal on "Cancel" button click
+            cancelButton.addEventListener('click', () => {
+                paymentModal.classList.add('hidden');
+            });
+
+// Handle form submission
+paymentForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    $.LoadingOverlay("show");
+
+    // Get form values
+    const name = document.getElementById('name').value;
+    const telephone = document.getElementById('telephone').value;
+    const address = document.getElementById('address').value;
+    const slip = document.getElementById('slip').files[0];
+
+    // Convert image to Base64
+    const base64Image = await getBase64(slip);
+
+    // Create order details object
+    const orderDetails = orderDetail.items.map(item => ({
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity
+    }));
+
+    // Get LINE UID
+    let lineUid = '';
+    try {
+        const profile = await liff.getProfile();
+        lineUid = profile.userId; // Capture LINE UID
+    } catch (error) {
+        console.error('Error fetching LINE profile:', error);
+        alert('Error fetching LINE profile. Please try again.');
+        $.LoadingOverlay("hide");
+        return;
+    }
+
+    // Send data to Google Apps Script with CORS handling
+    fetch(SERVER_URL, {
+        method: 'POST',
+        mode: 'no-cors', // Ensure CORS mode is set
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            lineUid,  // Include LINE UID
+            name,
+            telephone,
+            address,
+            image: base64Image,
+            orderDetails
+        })
+    })
+    .then(() => {
+        // Assume success and show the SweetAlert
+        Swal.fire('Success', 'Payment submitted successfully!', 'success');
+        paymentModal.classList.add('hidden');
+        resetButton.click(); // Clear the order
+        $.LoadingOverlay("hide");
+    })
+    .catch(error => {
+        // Handle any potential errors
+        Swal.fire('Error', error.toString(), 'error');
+        $.LoadingOverlay("hide");
+    });
+});
+
+
+            // Function to convert file to Base64
+            function getBase64(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = error => reject(error);
+                    reader.readAsDataURL(file);
+                });
+            }
+
+            // Initialize LIFF
+            async function initializeLiff() {
+                try {
+                    await liff.init({ liffId: LIFF_ID });
+                    if (liff.isLoggedIn()) {
+                        const profile = await liff.getProfile();
+                        userNameInput.value = profile.displayName;
+                        userImage.src = profile.pictureUrl;
+                        userImage.classList.remove('hidden');
+                    } else {
+                        liff.login();
+                    }
+                } catch (error) {
+                    console.error('LIFF initialization failed', error);
+                }
+            }
+
+            // Initialize UI
+            updateUI();
+            initializeLiff();
+            fetchMenuItems(); // Fetch menu items from JSON
+        });
+    </script>
+</body>
+</html>
