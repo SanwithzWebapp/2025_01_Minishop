@@ -5,7 +5,7 @@ function pushMessage() {
 
   const line_access_token = 'XXXXXXX' 
  
-  const uid = 'Uc9064514247263263c93136671c08aa1'
+  const uid = 'XXXXXXX'
 
 /** -------------------------------------------------------------------- */
 
